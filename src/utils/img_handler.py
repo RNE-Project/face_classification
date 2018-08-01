@@ -1,10 +1,14 @@
-from imageio import imread
+from imageio import imread, imwrite
+from sklearn.preprocessing import LabelEncoder
 import imgaug as ia
 from imgaug import augmenters as iaa
 import cv2
 from pathlib import Path
 import re
 from random import shuffle
+import random
+from numpy import newaxis, asarray
+from skimage.color import rgb2gray
 
 match = re.compile('(\d\d)-(\d\d)-(\d\d)-(\d\d)-(\d\d)-(\d\d)-(\d\d)')
 
@@ -15,9 +19,9 @@ class ImageHandler:
         aa = [iaa.Fliplr(0.5), iaa.Add((-20, 20)),
         iaa.AddToHueAndSaturation((-20, 20)), iaa.Multiply((0.8, 1.2)),
         iaa.GaussianBlur(sigma=(0, 0.1)), iaa.AdditiveGaussianNoise(scale=(0, 0.01*255)),
-        iaa.SaltAndPepper(p=(0, 0.05)), iaa.ContrastNormalization((0.8, 1.2)), iaa.Grayscale(alpha=1.0)]
-        if live: aa.append(iaa.Grayscale(alpha=1.0))
+        iaa.SaltAndPepper(p=(0, 0.05)), iaa.ContrastNormalization((0.8, 1.2))]
         self.seq = iaa.Sequential(aa)
+        self.le = LabelEncoder()
 
     def process_path(path):
         groups = match.search(str(path)).groups()[1:]
@@ -25,23 +29,27 @@ class ImageHandler:
         #speech, emotion, intensity, statement, repetition, actor =
         return groups
 
-    def emotion_gender(group):
-        emotion = int(group[1])
+    def emotion_gender(self,group):
+        emotion = [0, 0, 0, 0, 0, 0, 0, 0] #last two: male, female
+        emotion[int(group[1])-1] = 1
         actor = int(group[5])
-        female = False
-        if actor % 2 == 0:
-            female = True
-        return (emotion, female)
+        #if actor % 2 == 0:
+        #    emotion[9] = 1
+        #else: emotion[8] = 1
+        #return self.le.fit_transform(emotion)
+        return emotion
 
 
-    def process(self, imgs):
+    def process(self, imgs, lstm = True):
         if not self.live:
-            imgs = ImageHandler.intoten(list(imgs.iterdir()))
-            imgs = list(imread(str(path) for path in imgs))
+            imgs = [str(path) for path in imgs.iterdir()]
+            if lstm: ImageHandler.intoten(imgs)
+            imgs = [imread(p) for p in imgs]
         else:
-            imgs = ia.imresize_many_images(imgs, (450, 450))
+            imgs = ia.imresize_many_images(imgs, (500, 500))
 
-        return self.seq.augment_images(imgs)
+        self.seq.augment_images(imgs)
+        return [rgb2gray(img)[:, :, newaxis] for img in imgs]
 
     def split_dataset(self, dir):
         #split by statement
@@ -77,24 +85,56 @@ class ImageHandler:
                 imgs.insert(pos, imgs[pos])
 
 
-    def flow(self, dataset_dir, mode = 'train'):
+    def flow(self, dataset_dir, mode1 = 'train', mode2='cnn'):
         self.split_dataset(dataset_dir)
-        if mode == 'train':
-            for path in self.train_set_paths:
-                x_val = self.process(path)
-                y_val = ImageHandler.emotion_gender(process_path(path))
-                no = len(x_val)/10
-                for i in range(1, no+1):
-                    x = x_val[(i-1):i]
-                    yield(x, y_val)
-        if mode == 'valid':
-            for path in self.validation_set_paths:
-                x_val = self.process(path)
-                y_val = ImageHandler.emotion_gender(process_path(path))
-                no = len(x_val)/10
-                for i in range(1, no+1):
-                    x = x_val[(i-1):i]
-                    yield(x, y_val)
+        if mode2 == 'lstm':
+            if mode1 == 'train':
+                for path in self.train_set_paths:
+                    x_val = self.process(path)
+                    y_val = ImageHandler.emotion_gender(process_path(path))
+                    no = len(x_val)/10
+                    for i in range(1, no+1):
+                        x = x_val[(i-1):i]
+                        yield(x, y_val)
+            if mode1 == 'valid':
+                for path in self.validation_set_paths:
+                    x_val = self.process(path)
+                    y_val = ImageHandler.emotion_gender(process_path(path))
+                    no = len(x_val)/10
+                    for i in range(1, no+1):
+                        x = x_val[(i-1):i]
+                        yield(x, y_val)
+        if mode2 == 'cnn':
+            while True:
+                if mode1 == 'train':
+                    input = []
+                    targets = []
+                    for path in self.train_set_paths:
+                        x_val = self.process(path, False)
+                        y_val = self.emotion_gender(ImageHandler.process_path(path))
+                        for x in x_val:
+                            input.append(x)
+                            targets.append(y_val)
+                            if len(input) == 32:
+                                yield (asarray(input), asarray(targets))
+                                input = []
+                                targets = []
+                if mode1 == 'valid':
+                    input = []
+                    targets = []
+                    for path in self.validation_set_paths:
+                        x_val = self.process(path, False)
+                        y_val = self.emotion_gender(ImageHandler.process_path(path))
+                        for x in x_val:
+                            input.append(x)
+                            targets.append(y_val)
+                            if len(input) == 32:
+                                yield (asarray(input), asarray(targets))
+                                input = []
+                                targets = []
+                shuffle(self.validation_set_paths)
+                shuffle(self.train_set_paths)
+
 
 #p = Path('E:/dataset')
 #imghandler = ImageHandler()
@@ -112,3 +152,4 @@ class ImageHandler:
 
 
 # pass list of dir paths to flow, one dir = one emotion and gender, one batch
+#hard coded batch size for now

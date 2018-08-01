@@ -1,25 +1,29 @@
 from keras.callbacks import CSVLogger, ModelCheckpoint, EarlyStopping
 from keras.callbacks import ReduceLROnPlateau
-from utils.datasets import DataManager
 from models.cnn import mini_XCEPTION
 #from utils.data_augmentation import ImageGenerator
 #from utils.datasets import split_imdb_data
 from utils.img_handler import ImageHandler
+import os
+
+
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]="3"
 
 # parameters
-batch_size = 31
+batch_size = 32
 num_epochs = 1000
 validation_split = .2
 #do_random_crop = False
 patience = 100
-#num_classes = 2
+num_classes = 8
 #dataset_name = 'imdb'
-input_shape = (450, 450, 10)
+input_shape = (64, 64, 1)
 #if input_shape[2] == 1:
     #grayscale = True
 #images_path = '../datasets/imdb_crop/'
 log_file_path = '../trained_models/training.log'
-trained_models_path = '../trained_models/gender_models/gender_mini_XCEPTION'
+trained_models_path = '../trained_models/gender_models/hope'
 
 # data loader
 #data_loader = DataManager(dataset_name)
@@ -64,4 +68,15 @@ callbacks = [model_checkpoint, csv_logger, early_stop, reduce_lr]
 #                    validation_steps=int(len(val_keys) / batch_size))
 
 img_hndl = ImageHandler()
-model.fit_generator(img_hndl.flow('/home/rne/dataset'), steps_per_epoch=1005, epochs = 1000, verbose =1, callbacks = callbacks, validation_data = img_hndl.flow('valid'), validation_steps=1005)
+img_hndl.split_dataset('/home/rne/dataset_processed')
+train_keys = img_hndl.train_set_paths
+trains = 0
+val_keys = img_hndl.validation_set_paths
+vals = 0
+for p in train_keys:
+    trains += len(list(p.iterdir()))
+
+for p in val_keys:
+    vals += len(list(p.iterdir()))
+
+model.fit_generator(img_hndl.flow('/home/rne/dataset_processed'), steps_per_epoch=int(trains / batch_size), epochs = 1000, verbose =1, callbacks = callbacks, validation_data = img_hndl.flow('/home/rne/dataset_processed', 'valid'), validation_steps=int(vals / batch_size))
