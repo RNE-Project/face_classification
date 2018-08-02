@@ -3,7 +3,7 @@ from keras.callbacks import ReduceLROnPlateau
 from models.cnn import mini_XCEPTION
 #from utils.data_augmentation import ImageGenerator
 #from utils.datasets import split_imdb_data
-from utils.img_handler import ImageHandler
+from utils.data_handler import TrainCNN
 import os
 
 
@@ -11,9 +11,9 @@ os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="3"
 
 # parameters
-batch_size = 32
-num_epochs = 1000
-validation_split = .2
+batch_size = 64
+num_epochs = 100
+#validation_split = .2
 #do_random_crop = False
 patience = 100
 num_classes = 8
@@ -67,16 +67,16 @@ callbacks = [model_checkpoint, csv_logger, early_stop, reduce_lr]
 #                    validation_data=image_generator.flow('val'),
 #                    validation_steps=int(len(val_keys) / batch_size))
 
-img_hndl = ImageHandler()
-img_hndl.split_dataset('/home/rne/dataset_processed')
+img_hndl = TrainCNN('/home/rne/dataset_processed')
+#img_hndl.split_dataset('/home/rne/dataset_processed')
 train_keys = img_hndl.train_set_paths
-trains = 0
+trains = len(train_keys)
 val_keys = img_hndl.validation_set_paths
-vals = 0
-for p in train_keys:
-    trains += len(list(p.iterdir()))
+vals = len(val_keys)
+#for p in train_keys:
+#    trains += len(list(p.iterdir()))
 
-for p in val_keys:
-    vals += len(list(p.iterdir()))
+#for p in val_keys:
+#    vals += len(list(p.iterdir()))
 
-model.fit_generator(img_hndl.flow('/home/rne/dataset_processed'), steps_per_epoch=int(trains / batch_size), epochs = 1000, verbose =1, callbacks = callbacks, validation_data = img_hndl.flow('/home/rne/dataset_processed', 'valid'), validation_steps=int(vals / batch_size))
+model.fit_generator(img_hndl.flow('/home/rne/dataset_processed'), steps_per_epoch=int(trains / batch_size), epochs = num_epochs, verbose =1, callbacks = callbacks, validation_data = img_hndl.flow('/home/rne/dataset_processed', 'valid'), validation_steps=int(vals / batch_size))
