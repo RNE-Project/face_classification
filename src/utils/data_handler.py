@@ -8,8 +8,10 @@ import re
 from random import shuffle
 import random
 from numpy import newaxis, asarray
-from skimage.color import rgb2gray
 import constants
+
+def rgb2gray(rgb):
+    return dot(rgb[...,:3], [0.299, 0.587, 0.114])
 
 match = re.compile('(\d\d)-(\d\d)-(\d\d)-(\d\d)-(\d\d)-(\d\d)-(\d\d)')
 def process_path(path):
