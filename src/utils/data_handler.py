@@ -27,12 +27,12 @@ def emotion(group):
     #    emotion[9] = 1
     #else: emotion[8] = 1
     #return self.le.fit_transform(emotion)
-    print emotion
+    #print(emotion)
     return emotion
 
 
 class TrainCNN:
-    def __init(self, dataset):
+    def __init__(self, dataset):
         self.dataset = dataset
         aa = [iaa.Fliplr(0.5), iaa.Add((-20, 20)),
         iaa.AddToHueAndSaturation((-20, 20)), iaa.Multiply((0.8, 1.2)),
@@ -50,24 +50,24 @@ class TrainCNN:
 
 
 
-    def split_dataset(self, dir):
+    def split_dataset(self):
         self.train_set_paths = []
         self.validation_set_paths = []
         paths = []
         #rewrite this
-        for path in Path(dir).interdir():
+        for path in Path(self.dataset).iterdir():
             for file in path.iterdir():
                 paths.append(file)
         shuffle(paths)
         for path in paths:
             props = process_path(path)
-                which = random.random()
-                if which < 0.7:
-                    self.train_set_paths.append(path)
-                else:
-                    self.validation_set_paths.append(path)
+            which = random.random()
+            if which < 0.7:
+                self.train_set_paths.append(path)
+            else:
+                self.validation_set_paths.append(path)
 
-    def flow(mode = 'train'):
+    def flow(self, mode = 'train'):
         flow_paths = []
         if mode == 'train':
             flow_paths = self.train_set_paths

@@ -79,4 +79,4 @@ vals = len(val_keys)
 #for p in val_keys:
 #    vals += len(list(p.iterdir()))
 
-model.fit_generator(img_hndl.flow('/home/rne/dataset_processed'), steps_per_epoch=int(trains / batch_size), epochs = num_epochs, verbose =1, callbacks = callbacks, validation_data = img_hndl.flow('/home/rne/dataset_processed', 'valid'), validation_steps=int(vals / batch_size))
+model.fit_generator(img_hndl.flow(), steps_per_epoch=int(trains / batch_size), epochs = num_epochs, verbose =1, callbacks = callbacks, validation_data = img_hndl.flow('valid'), validation_steps=int(vals / batch_size))
