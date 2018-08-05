@@ -1,8 +1,9 @@
 from keras.callbacks import CSVLogger, ModelCheckpoint, EarlyStopping
 from keras.callbacks import ReduceLROnPlateau
-from models.cnn import mini_XCEPTION
-from utils.data_handler import TrainCNN
-import utils.constants
+#from models.cnn import mini_XCEPTION
+from keras.models import load_model
+from utils.data_handler import TrainCNN, TestCNN
+from utils.constants import Constants
 
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -14,7 +15,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="3"
 #validation_split = .2
 #do_random_crop = False
 patience = 100
-num_classes = 8
+num_classes = 2
 #dataset_name = 'imdb'
 input_shape = (64, 64, 1)
 #if input_shape[2] == 1:
@@ -24,7 +25,8 @@ log_file_path = Constants.log_dir + 'cnngender.txt'
 trained_models_path = Constants.gender_model_dir + 'cnn'
 
 # model parameters/compilation
-model = mini_XCEPTION(input_shape, num_classes)
+#model = mini_XCEPTION(input_shape, num_classes)
+model = load_model('../simple_CNN.81-0.96.hdf5')
 model.compile(optimizer='adam',
               loss='categorical_crossentropy',
               metrics=['accuracy'])
@@ -43,7 +45,8 @@ model_checkpoint = ModelCheckpoint(model_names,
                                    save_weights_only=False)
 callbacks = [model_checkpoint, csv_logger, early_stop, reduce_lr]
 
-img_hndl = TrainCNN()
+img_hndl = TrainCNN('gender')
 
+callbacks.append(TestCNN(img_hndl))
 
 model.fit_generator(img_hndl.flow(), steps_per_epoch=img_hndl.steps_per_epoch_train, epochs = Constants.epochs, verbose =1, callbacks = callbacks, validation_data = img_hndl.flow('valid'), validation_steps=img_hndl.steps_per_epoch_valid)

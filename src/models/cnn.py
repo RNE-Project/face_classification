@@ -81,7 +81,7 @@ def mini_XCEPTION(input_shape, num_classes, l2_regularization=0.01):
     # module 4
     residual = Conv2D(128, (1, 1), strides=(2, 2),
                       padding='same', use_bias=False)(x)
-    residual = BatchNormalization()(residual)
+    #residual = BatchNormalization()(residual)
 
     x = SeparableConv2D(128, (3, 3), padding='same',
                         kernel_regularizer=regularization,
