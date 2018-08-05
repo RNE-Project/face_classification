@@ -11,20 +11,27 @@ from numpy import newaxis, asarray, dot, uint8, argmax
 from .constants import Constants as constants
 from keras.callbacks import Callback
 
-class TestCNN(Callback):
+class TestCNN(Callback, mode):
     def __init__(self, img_hndl):
         self.test_paths = img_hndl.test_paths
 
     def on_epoch_end(self, epoch, logs={}):
         input = []
         targets = []
-        for path in self.test_paths:
-            y = emotion(process_path(path))
-            #img = cv2.resize(imread(str(path)), (48,48))
-            img = rgb2gray(imread(str(path)))[:, :, newaxis]
-            input.append(img)
-            #cv2.imwrite('/home/rne/test' + str(random.random()) + '.png', img)
-            targets.append(y)
+        if mode == 'emotion':
+            for path in self.test_paths:
+                y = emotion(process_path(path))
+                #img = cv2.resize(imread(str(path)), (48,48))
+                img = rgb2gray(imread(str(path)))[:, :, newaxis]
+                input.append(img)
+                #cv2.imwrite('/home/rne/test' + str(random.random()) + '.png', img)
+                targets.append(y)
+        else:
+            for path in self.test_paths:
+                y = gender(process_path(path))
+                img = cv2.resize(imread(str(path)), (48, 48))
+                input.append(img)
+                targets.append(y)
 #        imgs = []
        # x, y = self.test_data
         loss, acc = self.model.evaluate(asarray(input), asarray(targets), verbose=0)
@@ -54,14 +61,22 @@ def emotion(group):
     if ravdess == 8: emotion[5] = 1
     #emotion[int(group[1])-1] = 1
     return emotion
+#Emotion (01 = neutral, 02 = calm, 03 = happy, 04 = sad, 05 = angry, 06 = fearful, 07 = disgust, 08 = surprised).
+#
+#def get_labels(dataset_name):
+    #if dataset_name == 'fer2013':
+#        return {0:'angry',1:'disgust',2:'fear',3:'happy',
+#                4:'sad',5:'surprise',6:'neutral'}
+#    elif dataset_name == 'imdb':
+#return {0:'woman', 1:'man'}
 
 def gender(group):
     gender = [0, 0] #male female
     actor = int(group[5])
     if actor % 2 == 0:
-        gender[1] = 1
-    else:
         gender[0] = 1
+    else:
+        gender[1] = 1
 
     return gender
 
@@ -87,12 +102,13 @@ iaa.AddToHueAndSaturation((-20, 20)), iaa.Multiply((0.8, 1.2)),
 iaa.GaussianBlur(sigma=(0, 0.1)), iaa.AdditiveGaussianNoise(scale=(0, 0.01*255)),
 iaa.SaltAndPepper(p=(0, 0.05)), iaa.ContrastNormalization((0.8, 1.2))])
 
-def process(imgs):
-    imgs = [str(path) for path in imgs]
-    imgs = [imread(p) for p in imgs]
+def process_gender(imgs):
+    imgs = [cv2.resize(imread(str(path)), (48, 48)) for path in imgs]
+    return imgs
 
-    #seq.augment_images(imgs)
-    return [rgb2gray(img)[:, :, newaxis] for img in imgs]
+def process_emotion(imgs):
+    imgs = [rgb2gray(imread(str(path)))[:, :, newaxis] for path in imgs]
+    return imgs
 
 class TrainCNN:
     def __init__(self, target = 'emotion'):
@@ -101,8 +117,10 @@ class TrainCNN:
         self.steps_per_epoch_valid = int(len(self.validation_set_paths)/constants.cnn_batch_size)
         if target == 'emotion':
             self.y_func = emotion
+            self.process = process_emotion
         if target == 'gender':
             self.y_func = gender
+            self.process = process_gender
 
     def split_dataset(self):
         self.train_set_paths = []
@@ -123,6 +141,7 @@ class TrainCNN:
             else: self.test_paths.append(path)
 
     def flow(self, mode = 'train'):
+        f = open("test.txt", "a+")
         flow_paths = []
         if mode == 'train':
             flow_paths = self.train_set_paths
@@ -138,9 +157,10 @@ class TrainCNN:
                 #input.append(cv2.resize(imread(str(path)), (48, 48)))
                 targets.append(y)
                 #print(path, y)
+                f.write("Path: " + str(path) + "; Processed_path: " + str(y) + "\r\n")
                 if len(input) == constants.cnn_batch_size:
                     #print('processing')
-                    input = process(input)
+                    input = self.process(input)
                     #print('yielding')
                     yield(asarray(input), asarray(targets))
                     input = []
@@ -181,6 +201,8 @@ class TrainLSTM:
             flow_paths = self.train_set_paths
         if mode == 'valid':
             flow_paths = self.validation_set_paths
+
+
 
         input = []
         targets = []

@@ -15,9 +15,9 @@ os.environ["CUDA_VISIBLE_DEVICES"]="3"
 #validation_split = .2
 #do_random_crop = False
 patience = 50
-num_classes = 7
+#num_classes = 7
 #dataset_name = 'imdb'
-input_shape = (64, 64, 1)
+#input_shape = (64, 64, 1)
 #if input_shape[2] == 1:
     #grayscale = True
 #images_path = '../datasets/imdb_crop/'
@@ -26,7 +26,7 @@ trained_models_path = Constants.emotion_model_dir + 'cnn'
 
 # model parameters/compilation
 #model = mini_XCEPTION(input_shape, num_classes)
-model = load_model('../fer2013_mini_XCEPTION.102-0.66.hdf5')
+model = load_model(Constants.emotion_model_dir + 'original.hdf5')
 model.compile(optimizer='adam',
               loss='categorical_crossentropy',
               metrics=['accuracy'])
@@ -47,6 +47,6 @@ callbacks = [model_checkpoint, csv_logger, early_stop, reduce_lr]
 
 img_hndl = TrainCNN('emotion')
 
-callbacks.append(TestCNN(img_hndl))
+callbacks.append(TestCNN(img_hndl, 'emotion'))
 
 model.fit_generator(img_hndl.flow(), steps_per_epoch=img_hndl.steps_per_epoch_train, epochs = Constants.epochs, verbose =1, callbacks = callbacks, validation_data = img_hndl.flow('valid'), validation_steps=img_hndl.steps_per_epoch_valid)
